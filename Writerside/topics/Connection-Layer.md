@@ -14,11 +14,11 @@ example, the static public key of `Node A` is `sPKa`.
    - Generate a random connection token `T`
    - Generate an ephemeral asymmetric key pair: `(ePKa, eSKa)`
    - Sign `ePKa` with `sSKa` to create `S1`
-   - Create a JSON request `R` with `(ConnectionRequest, T, ID_A, ePKa, S1)`
+   - Create a JSON request `R` with `(ConnectionRequest, T, Cert_A, ePKa, S1)`
    - Send `R` to `Node B`
 
-2. `Node B` Handles the connection request `(ConnectionRequest, T, ID_A, ePKa, S1)`
-   - Verify `S1` with `sPKa` to match `ePKa`
+2. `Node B` Handles the connection request `(ConnectionRequest, T, Cert_A, ePKa, S1)`
+   - Verify `S1` with `sPKa` (from `Cert_A`) to match `ePKa`
    - Create a random challenge `C` (24-bit random || 8-bit timestamp)
    - Sign the challenge with `sSKb` to create `S2`
    - Create a JSON response `R` with `(SignatureChallenge, T, C, S2)`
@@ -48,3 +48,4 @@ example, the static public key of `Node A` is `sPKa`.
 
 6. Both `Node A` and `Node B` can now communicate using the shared key `K`
    - Both nodes use a KDF algorithm to derive an encryption key `EK` from `K`
+

@@ -7,7 +7,11 @@
                  start-page="Intro.md">
 
     <toc-element topic="Intro.md"/>
+    <toc-element topic="DistributedNetwork.md">
+        <toc-element topic="Bootstrapping.md"/>
+    </toc-element>
     <toc-element topic="Communication-Stack.md">
+        <toc-element topic="Distributed-Layer.md"/>
         <toc-element topic="Connection-Layer.md"/>
     </toc-element>
 </instance-profile>
