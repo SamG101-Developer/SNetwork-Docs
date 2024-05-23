@@ -10,21 +10,21 @@ In the following example, `Node A` wants to connect to `Node B`. Nodes all have 
 public keys are hosted on the distributed public key infrastructure, embedded in certificates tied to their IDs. For
 example, the static public key of `Node A` is `sPKa`.
 
-1. `Node A` Connection preparation
+1. `Node A` connection preparation
    - Generate a random connection token `T`
    - Generate an ephemeral asymmetric key pair: `(ePKa, eSKa)`
    - Sign `ePKa` with `sSKa` to create `S1`
    - Create a JSON request `R` with `(ConnectionRequest, T, Cert_A, ePKa, S1)`
    - Send `R` to `Node B`
 
-2. `Node B` Handles the connection request `(ConnectionRequest, T, Cert_A, ePKa, S1)`
+2. `Node B` handles the connection request `(ConnectionRequest, T, Cert_A, ePKa, S1)`
    - Verify `S1` with `sPKa` (from `Cert_A`) to match `ePKa`
    - Create a random challenge `C` (24-bit random || 8-bit timestamp)
    - Sign the challenge with `sSKb` to create `S2`
    - Create a JSON response `R` with `(SignatureChallenge, T, C, S2)`
    - Send `R` to `Node A`
 
-3. `Node A` Handles the connection response `(SignatureChallenge, T, C, S2)`
+3. `Node A` handles the connection response `(SignatureChallenge, T, C, S2)`
    - Verify `S2` with `sPKb` to match `C`
    - Verify the timestamp in `C` to be within a set tolerance
    - Save the challenge `C`
@@ -32,7 +32,7 @@ example, the static public key of `Node A` is `sPKa`.
    - Create a JSON request `R` with `(ChallengeResponse, T, S3)`
    - Send `R` to `Node B`
 
-4. `Node B` Handles the challenge response `(ChallengeResponse, T, S3)`
+4. `Node B` handles the challenge response `(ChallengeResponse, T, S3)`
    - Verify `S3` with `ePKa` to match `C`
    - Create a 32-bit cryptographically secure pseudo-random key `K`
    - Sign `K` with `sSKb` to create `S4`
@@ -40,7 +40,7 @@ example, the static public key of `Node A` is `sPKa`.
    - Create a JSON response `R` with `(ConnectionAccept, T, E)`
    - Send `R` to `Node A`
 
-5. `Node A` Handles the connection accept `(ConnectionAccept, T, E)`
+5. `Node A` handles the connection accept `(ConnectionAccept, T, E)`
    - Decrypt `E` with `eSKa` to get `K || S4`
    - Verify `S4` with `sPKb` to match `K`
    - Save the key `K`
