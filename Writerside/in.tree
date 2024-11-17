@@ -22,5 +22,7 @@
         <toc-element topic="Routing-Layer.md"/>
         <toc-element topic="Distributed-Layer.md"/>
         <toc-element topic="Connection-Layer.md"/>
+        <toc-element topic="Connection-Layer-2.md"/>
+        <toc-element topic="Connection-Layer-3.md"/>
     </toc-element>
 </instance-profile>
