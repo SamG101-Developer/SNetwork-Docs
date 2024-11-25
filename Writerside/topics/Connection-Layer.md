@@ -10,65 +10,63 @@ In the following example, `Node A` wants to connect to `Node B`. Nodes all have 
 public keys are hosted on the distributed public key infrastructure, embedded in certificates tied to their IDs. For
 example, the static public key of `Node A` is `sPKa`.
 
-1. `Node A` connection preparation
-   - Generate a random connection token `T` (24-bit random || 8-bit timestamp)
-   - Cache the connection token `T`
-   - Generate an ephemeral asymmetric key pair: `(ePKa, eSKa)` unique to this connection
-   - Sign `T || ePKa` with `sSKa` to create `S1`
-   - Create a JSON request `R` with `(ConnectionRequest, T, Cert_A, ePKa, S1)`
-   - Send `R` to `Node B`
+### Connection Protocol
 
-2. `Node B` handles the connection request `(ConnectionRequest, T, Cert_A, ePKa, S1)`
-   - Verify `Cert_A` with a hard-coded directory service public key
-   - Verify `S1` with `sPKa` (from `Cert_A`) to match `T || ePKa`
-   - Verify the timestamp in `T` to be within a set tolerance
-   - Cache the connection token `T`
-   - Create a random challenge `C` (120-bit random || 8-bit timestamp)
-   - Cache the challenge `C`
-   - Sign `T || C` with `sSKb` to create `S2`
-   - Create a JSON response `R` with `(SignatureChallenge, T, C, S2)`
-   - Send `R` to `Node A`
+1. `NodeA` connection request
+    - Generate a random connection token `T` (256-bit random || 64-bit timestamp)
+    - Generate an ephemeral asymmetric key pair: `(ePKa, eSKa)` unique to this connection
+    - Sign `T || ePKa` with `sSKa` to create `S1`
+    - Create a JSON request `R` with `ConnectionRequest(T, ePKa, S1)`
+    - Send `R` to `Node B`
 
-3. `Node A` handles the connection response `(SignatureChallenge, T, C, S2)`
-   - Verify `S2` with `sPKb` to match `T || C`
-   - Verify `T` matches the cached connection token
-   - Verify the timestamp in `C` to be within a set tolerance
-   - Cache the challenge `C`
-   - Sign `T || C` with `eSKa` to create `S3`
-   - Create a JSON request `R` with `(ChallengeResponse, T, S3)`
-   - Send `R` to `Node B`
+2. `Node B` handles the connection request `ConnectionRequest(T, ePKa, S1)`
+    - Verify `S1` with `sPKa` to match `T || ePKa`
+    - Validate the timestamp part of `T` and the byte form of `ePKa`
+    - Generate a master session key `K` from a `CSPRNG`
+    - KEM `K` with `ePKa` to create `E`
+    - Sign `T || E` with `sSKb` to create `S2`
+    - Create a JSON response `R` with `ConnectionAccept(T, E, S2)`
+    - Send `R` to `Node A`
 
-4. `Node B` handles the challenge response `(ChallengeResponse, T, S3)`
-   - Verify `S3` with `ePKa` to match locally stored `C`
-   - Create a 512-bit cryptographically secure pseudo-random key `K`
-   - Sign `K` with `sSKb` to create `S4`
-   - Encapsulate `T || K || S4` with `ePKa` to create `E`
-   - Create a JSON response `R` with `(ConnectionAccept, T, E)`
-   - Send `R` to `Node A`
+3. `Node A` handles the connection accept `ConnectionAccept(T, E, S2)`
+    - Verify `S2` with `sPKb` to match `T || E`
+    - Decrypt `E` with `eSKa` to get `K`
+    - Save the key `K` and use KDF to generate `EK`
+    - Discard the ephemeral key pair `(ePKa, eSKa)`
+    - Encrypted channel over `EK` is established
 
-5. `Node A` handles the connection accept `(ConnectionAccept, T, E)`
-   - Decrypt `E` with `eSKa` to get `T || K || S4`
-   - Verify `S4` with `sPKb` to match `K`
-   - Verify `T` matches the cached connection token
-   - Save the key `K`
-   - Hash the key `K` to create `H` (for connection confirmation)
-   - Sign `H` with `eSKa` to create `S5`
-   - Create a JSON request `R` with `(ConnectionConfirm, H, S5, T)`
+### Key Refresh Protocol
 
-6. `Node B` handles the connection confirm `(ConnectionConfirm, H, S5, T)`
-   - Verify `S5` with `ePKa` to match `H`
-   - Verify `T` matches the cached connection token
-   - Hash the key `K` to create `G`
-   - Check `G` against `H` to prove ownership from `Node A`
+1. `Node A` key refresh (every 100 messages)
+    - Generate a new master key `K'` from a `CSPRNG`
+    - Encrypt `K || K'` using the `AES_KEYWRAP` algorithm with `EK` to create `E`
+    - Increment `n` (number of key refreshes)
+    - Choose `m` - a future message number
+    - Create a JSON request `R` with `KeyRefresh(E, n, m)`
+    - Encrypt `R` with `EK` to create `ER` (current encrypted channel encryption).
+    - Send `ER` to `Node B`
 
-7. Both `Node A` and `Node B` can now communicate using the shared key `K`
-   - Both nodes use a KDF algorithm to derive an encryption key `EK` from `K`
+2. `Node B` handles the key refresh `KeyRefresh(EK, EK', n)`
+    - Decrypt `E` with `EK` to get `K || K'`
+    - Verify `n` is greater than the last key refresh
+    - Verify `K` matches the current master key
+    - Save the new master key `K'` and use KDF to generate `EK'`
+    - After message `m` is received, switch to `EK'` for the encrypted channel
+    - Discard the old master key `K`
 
-**Notes:**
-- All random information is generated from cryptographically secure pseudo-random number generators.
-- All signatures are timestamped and contain the target identifier, to prevent replay attacks.
-- The ephemeral key pair is unique to this connection session and discarded after the connection is established.
+### Notes
+
+- All signatures are timestamped and contain the session token and target identifier.
+- Memory is zeroed after use to prevent memory leaks, and all memory operations are constant time.
 - Any signature/certificate verification failure (including stale timestamps) results in the connection being closed.
 - Mutexes lock the caches before read/write operations.
-- Caches have items purged after `n` seconds, which is the timestamp tolerance value.
-- Algorithms: `SHA_3_256`, `AES_256_OCB3`, `RSA_2048`, `X509`, `HKDF (KMAC-SHA256)`.
+- Caches are LRU and bounded to prevent memory exhaustion attacks.
+- Connection rate limiter
+- Node state is used in conjunction with message types to prevent replay attacks.
+- Algorithms:
+    - Hashing: `SHA_3_256`,
+    - Symmetric Encryption: `AES_256_OCB3`,
+    - Asymmetric KEM: `CRYSTALS_Kyber_1024`,
+    - Asymmetric Signing: `CRYSTALS_Dilithium-4`,
+    - Certificates: `X509` (modified for `Dilithium` signatures),
+    - Key derivation: `HKDF_KMAC_SHA3_256`,

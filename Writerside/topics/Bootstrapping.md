@@ -27,18 +27,18 @@ DHT.
 
 1. Node Connection Preparation
     - Generate an asymmetric key pair: `(ePK, eSK)`
-    - Create a X.509 certificate `Cert` with `(ID, ePK)`
+    - Create a X.509 certificate request `Cert` with `(ID, ePK)`
     - Create a JSON request `R` with `(CertificateRequest, Cert)`
     - Send `R` to the directory node
 
 2. Directory Node Handles the connection request `(CertificateRequest, Cert)`
     - Ensure the hash of `ePK` matches `ID`
-    - Sign the certificate with the private key of the directory node to create `S0`
-    - Create a JSON response `R` with `(CertificateResponse, S0, NodeList)`
+    - Sign the certificate request with the private key of the directory node to create `S1`
+    - Create a JSON response `R` with `(CertificateResponse, S1, NodeList)`
     - Send `R` to the node
 
-3. Node Handles the connection response `(CertificateResponse, S0, NodeList)`
-    - Verify `S0` with the public key of the directory node
+3. Node Handles the connection response `(CertificateResponse, S1, NodeList)`
+    - Verify `S1` with the public key of the directory node
     - Save the certificate `Cert`
     - Save the list of nodes `NodeList`
     - Connect to the nodes in `NodeList` and exchange certificates

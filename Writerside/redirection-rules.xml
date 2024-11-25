@@ -6,8 +6,4 @@
         <accepts>page.html</accepts>
     </rule>
     -->
-    <rule id="26fe77d8">
-        <description>Created after removal of "Structure" from Instance Name</description>
-        <accepts>Structure.html</accepts>
-    </rule>
 </rules>
